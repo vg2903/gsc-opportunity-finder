@@ -1,3 +1,17 @@
-min_word_count: 3
-position_threshold: 20
-use_clustering: true
+# config.yaml
+
+# Long-tail query detection settings
+min_word_count: 3               # Minimum words in query to be considered long-tail
+position_threshold: 20          # Optional: only analyze queries ranked below this position
+
+# Clustering
+use_clustering: true            # Enable query grouping
+
+# Content Suggestions
+enable_ai: true                 # If true, allow GPT-based suggestions
+openai_api_key: ""              # Optional: input via app or secrets
+gemini_api_key: ""              # Optional: input via app or secrets
+
+# Export options
+enable_csv_export: true
+enable_gsheet_export: false     # Google Sheets export (future)
