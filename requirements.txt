@@ -5,3 +5,4 @@ scikit-learn
 openai
 google-auth
 google-api-python-client
+pyyaml
