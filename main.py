@@ -41,7 +41,7 @@ if "google_oauth" in st.secrets:
             "client_secret": st.secrets["google_oauth"]["client_secret"],
             "auth_uri": "https://accounts.google.com/o/oauth2/auth",
             "token_uri": "https://oauth2.googleapis.com/token",
-            "redirect_uris": [st.secrets.get("redirect_uri", f"https://{st.secrets['custom_domain']}")],
+            "redirect_uris": [st.secrets.get("redirect_uri", "https://gsc-opportunity-finder-dxdrveje6ukijjwpy2egss.streamlit.app/']}")],
         }
     }
     with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".json") as tmp:
