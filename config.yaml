@@ -1,0 +1,3 @@
+min_word_count: 3
+position_threshold: 20
+use_clustering: true
