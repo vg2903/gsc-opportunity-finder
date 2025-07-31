@@ -4,17 +4,14 @@ import pandas as pd
 import traceback
 import yaml
 import os
-from google.oauth2.credentials import Credentials
+import json
+import tempfile
 from google_auth_oauthlib.flow import Flow
-from googleapiclient.discovery import build
-import datetime
 
 # Import utility functions
 from utils.query_analysis import detect_long_tail_queries, cluster_queries
 from utils.gsc_api import match_queries_to_pages
 from utils.content_suggestions import generate_h2s
-
-SCOPES = ["https://www.googleapis.com/auth/webmasters.readonly"]
 
 # -------------------------------
 # Load configuration from config.yaml
@@ -30,6 +27,7 @@ except Exception:
 # -------------------------------
 st.set_page_config(page_title="GSC Opportunity Finder", layout="wide")
 st.title("🔍 GSC Opportunity Finder")
+st.markdown("Upload your GSC keyword export and Buy Page URLs to find long-tail opportunities.")
 
 # Sidebar Configuration Panel
 st.sidebar.header("⚙️ App Settings")
@@ -43,74 +41,37 @@ st.sidebar.header("🔑 API Keys (Optional)")
 openai_key = st.sidebar.text_input("OpenAI API Key", type="password", value=config.get("openai_api_key", ""))
 gemini_key = st.sidebar.text_input("Gemini API Key", type="password", value=config.get("gemini_api_key", ""))
 
-st.markdown("### 📥 Upload your GSC export and Buy Page list OR connect via Google OAuth")
+# GSC OAuth Section
+st.subheader("🔐 Connect to Google Search Console (OAuth)")
+
+if "google_oauth" in st.secrets:
+    creds_dict = {
+        "web": {
+            "client_id": st.secrets["google_oauth"]["client_id"],
+            "client_secret": st.secrets["google_oauth"]["client_secret"],
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+            "redirect_uris": [f"https://{st.secrets['custom_domain'] if 'custom_domain' in st.secrets else st.runtime.scriptrunner.get_url().replace('http://', '').replace('https://', '')}"],
+            "javascript_origins": ["https://localhost"]
+        }
+    }
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".json") as tmp:
+        json.dump(creds_dict, tmp)
+        tmp_path = tmp.name
+
+    st.success("✅ OAuth credentials loaded. (UI integration for login coming soon...)")
+else:
+    st.warning("❌ Google OAuth not configured correctly. Please check `st.secrets`.")
 
 # File uploaders
 gsc_file = st.file_uploader("📈 Upload GSC CSV (with query, url, clicks, impressions, ctr, position)", type="csv")
 buy_file = st.file_uploader("🛒 Upload Buy Page List CSV (with 'url' column)", type="csv")
 
-# -------------------------------
-# Google OAuth Integration
-# -------------------------------
-st.markdown("---")
-st.markdown("### 🔐 Or connect directly to Google Search Console")
-
-if "credentials" not in st.session_state:
-    st.session_state.credentials = None
-
-if not st.session_state.credentials:
-    if os.path.exists("client_secret.json"):
-        flow = Flow.from_client_secrets_file(
-            "client_secret.json",
-            scopes=SCOPES,
-            redirect_uri=st.experimental_get_url().split("/")[0]
-        )
-        auth_url, _ = flow.authorization_url(prompt="consent")
-        st.markdown(f"[👉 Connect your Google Account]({auth_url})")
-    else:
-        st.warning("client_secret.json not found for OAuth.")
-else:
-    credentials = st.session_state.credentials
-    service = build("searchconsole", "v1", credentials=credentials)
-    site_list = service.sites().list().execute()
-    sites = [s["siteUrl"] for s in site_list["siteEntry"] if "siteUrl" in s]
-    selected_site = st.selectbox("Select GSC Property", sites)
-
-    if st.button("📡 Fetch GSC Data"):
-        today = datetime.date.today()
-        start = today - datetime.timedelta(days=90)
-
-        request = {
-            "startDate": str(start),
-            "endDate": str(today),
-            "dimensions": ["query", "page"],
-            "rowLimit": 5000
-        }
-
-        response = service.searchanalytics().query(siteUrl=selected_site, body=request).execute()
-        rows = response.get("rows", [])
-        data = []
-
-        for row in rows:
-            query = row["keys"][0]
-            url = row["keys"][1]
-            clicks = row.get("clicks", 0)
-            impressions = row.get("impressions", 0)
-            ctr = row.get("ctr", 0)
-            position = row.get("position", 0)
-            data.append([query, url, clicks, impressions, ctr, position])
-
-        gsc_df = pd.DataFrame(data, columns=["query", "url", "clicks", "impressions", "ctr", "position"])
-        st.session_state["gsc_df"] = gsc_df
-        st.success("✅ GSC Data fetched successfully.")
-        st.dataframe(gsc_df.head())
-
-# -------------------------------
-# Main Logic
-# -------------------------------
 try:
-    if (gsc_file or "gsc_df" in st.session_state) and buy_file:
-        gsc_df = pd.read_csv(gsc_file) if gsc_file else st.session_state["gsc_df"]
+    if gsc_file and buy_file:
+        gsc_df = pd.read_csv(gsc_file)
         buy_df = pd.read_csv(buy_file)
 
         st.subheader("📊 GSC Data Preview")
@@ -122,7 +83,7 @@ try:
         filtered_df = detect_long_tail_queries(gsc_df, min_word_count=min_words)
         filtered_df = filtered_df[filtered_df["position"] <= position_threshold]
 
-        st.success(f"✅ {len(filtered_df)} queries passed filters.")
+        st.success(f"✅ {len(filtered_df)} queries passed long-tail and position filter.")
         st.dataframe(filtered_df.head())
 
         matched_df = match_queries_to_pages(filtered_df, buy_df)
@@ -145,8 +106,10 @@ try:
         st.subheader("📤 Download Your Opportunity Report")
         csv = clustered_df.to_csv(index=False)
         st.download_button("⬇️ Download CSV", csv, "opportunity_report.csv", "text/csv")
+
     else:
-        st.warning("👆 Upload both GSC and Buy Page files or connect via OAuth to continue.")
+        st.info("📥 Upload both GSC and Buy Page files, or connect via OAuth to proceed.")
+
 except Exception as e:
     st.error("❌ Something went wrong.")
     st.code(traceback.format_exc())
