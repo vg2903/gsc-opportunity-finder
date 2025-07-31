@@ -1,0 +1,14 @@
+# Ignore sensitive files
+client_secret.json
+
+# Ignore Python cache and virtual environments
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+env/
+venv/
+
+# Ignore Streamlit generated files
+.streamlit/
