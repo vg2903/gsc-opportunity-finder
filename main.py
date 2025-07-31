@@ -57,9 +57,10 @@ if "google_oauth" in st.secrets:
         }
     }
 
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".json") as tmp:
-        json.dump(creds_dict, tmp)
-        tmp_path = tmp.name
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".json") as tmp:
+    json.dump(creds_dict, tmp)
+    tmp_path = tmp.name
+
 
     st.success("✅ OAuth credentials loaded. (UI integration for login coming soon...)")
 else:
