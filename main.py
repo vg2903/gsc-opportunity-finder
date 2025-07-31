@@ -52,7 +52,7 @@ if "google_oauth" in st.secrets:
             "auth_uri": "https://accounts.google.com/o/oauth2/auth",
             "token_uri": "https://oauth2.googleapis.com/token",
             "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-            "redirect_uris": [f"https://{st.secrets['custom_domain'] if 'custom_domain' in st.secrets else st.runtime.scriptrunner.get_url().replace('http://', '').replace('https://', '')}"],
+            "redirect_uris": [st.secrets.get("redirect_uri", "https://gsc-opportunity-finder-dxdrveje6ukijjwpy2egss.streamlit.app/")],
             "javascript_origins": ["https://localhost"]
         }
     }
