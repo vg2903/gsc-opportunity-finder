@@ -1,4 +1,10 @@
 import streamlit as st
+import traceback
 
-st.title("Hello, Streamlit!")
-st.write("If you can see this, backend is running fine.")
+try:
+    # YOUR EXISTING CODE
+    st.title("GSC Opportunity Finder")
+    # ... load modules, files, run logic, etc.
+except Exception as e:
+    st.error("❌ Something went wrong:")
+    st.code(traceback.format_exc())
